@@ -302,6 +302,7 @@ public class Risk {
         }
 
         private void setBonuses(int config) {
+            bonusList.clear();
             switch (config) {
                 case 0:
                     for (int k = 0; k < 10; k++) {
