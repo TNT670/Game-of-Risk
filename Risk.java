@@ -64,6 +64,22 @@ public class Risk {
     private void doProcess(int round) {
         List<RiskPlayer> clones = new ArrayList<RiskPlayer>(players);
         o: for (int k = 0; k < turns; k++) {
+            for (int l = clones.size()-1; l >= 0; l--) {
+        		RiskPlayer p = clones.get(l);
+        		int n = 0;
+        		for (Territory[] ta : field.territories)
+        			for (Territory t : ta)
+        				if (t.player == p.id)
+        					n++;
+        		if (n == 0) {
+        			System.out.println(p.cmd + " has no territories");
+        			clones.remove(p);
+        		}
+
+        		if (clones.size() == 1)
+        			break o;
+        	}
+            
             System.out.println("Round: " + round + ", Turn: " + (k+1));
             List<String> commands = new ArrayList<String>();
             for (java.util.Iterator<RiskPlayer> i = clones.iterator(); i.hasNext();) {
@@ -71,23 +87,14 @@ public class Risk {
                 try {
                     int apt = 5;
 
-                    final Set<Territory> territories = new HashSet<Territory>();
-                    int numTerritories = 0;
+                    Set<Territory> territories = new HashSet<Territory>();
                     for (Territory[] ta : field.territories) {
                         for (Territory t : ta) {
                             if (t.player == p.id) {
                                 territories.add(t);
                                 territories.addAll(t.getAdjacent());
-                                numTerritories++;
                             }
                         }
-                    }
-                    if (numTerritories == 0) {
-                        System.out.println(p.cmd + " has no territories");
-                        i.remove();
-                        if (clones.size() == 1)
-                            break o;
-                        continue;
                     }
 
                     for (Bonus b : field.bonusList) {
