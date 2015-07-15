@@ -15,6 +15,7 @@ public class Player {
 
         Territory t1 = l.get(r.nextInt(l.size()));
         System.out.println(t1.row + "," + t1.col + "," + args[1]);
+        t1.armies += Integer.parseInt(args[1]);
 
         java.util.Collections.shuffle(l);
         for (Territory t : l) {
