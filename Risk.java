@@ -13,9 +13,8 @@ import java.util.Set;
 public class Risk {
     private List<RiskPlayer> players = new ArrayList<RiskPlayer>();
     private Map<Integer, String> cmdMap = new HashMap<Integer, String>();
-    private String[] clazz = {"java Player"
-                              /*,
-                               *Add other program commands here*/};
+    private String[] clazz = {"java Player"/*,
+                              Add other players here*/};
     private PlayingField field = new PlayingField();
 
     private final int rounds = 20, turns = 1000, timeout = 1000;
@@ -68,98 +67,94 @@ public class Risk {
             System.out.println("Round: " + round + ", Turn: " + (k+1));
             List<String> commands = new ArrayList<String>();
             for (java.util.Iterator<RiskPlayer> i = clones.iterator(); i.hasNext();) {
-                RiskPlayer p = i.next();
-                int apt = 5;
+                try {
+                    RiskPlayer p = i.next();
+                    int apt = 5;
 
-                final Set<Territory> territories = new HashSet<Territory>();
-                int numTerritories = 0;
-                for (Territory[] ta : field.territories) {
-                    for (Territory t : ta) {
-                        if (t.player == p.id) {
-                            territories.add(t);
-                            territories.addAll(t.getAdjacent());
-                            numTerritories++;
+                    final Set<Territory> territories = new HashSet<Territory>();
+                    int numTerritories = 0;
+                    for (Territory[] ta : field.territories) {
+                        for (Territory t : ta) {
+                            if (t.player == p.id) {
+                                territories.add(t);
+                                territories.addAll(t.getAdjacent());
+                                numTerritories++;
+                            }
                         }
                     }
-                }
-                if (numTerritories == 0) {
-                    System.out.println(p.cmd + " has no territories");
-                    i.remove();
-                    if (clones.size() == 1)
-                        break o;
-                    continue;
-                }
-
-                for (Bonus b : field.bonusList) {
-                    Set<Territory> s = new HashSet<Territory>(territories);
-                    for (java.util.Iterator<Territory> it = s.iterator(); it.hasNext();) {
-                        Territory t = it.next();
-                        if (t.player != p.id)
-                            it.remove();
+                    if (numTerritories == 0) {
+                        System.out.println(p.cmd + " has no territories");
+                        i.remove();
+                        if (clones.size() == 1)
+                            break o;
+                        continue;
                     }
-                    if (s.containsAll(b.territories))
-                        apt += b.value;
-                }
 
-                StringBuilder sb = new StringBuilder();
-                for (Territory t : territories)
-                    sb.append(t.toString()).append(" ");
-                String cmd2 = sb.toString().trim();
+                    for (Bonus b : field.bonusList) {
+                        Set<Territory> s = new HashSet<Territory>(territories);
+                        for (java.util.Iterator<Territory> it = s.iterator(); it.hasNext();) {
+                            Territory t = it.next();
+                            if (t.player != p.id)
+                                it.remove();
+                        }
+                        if (s.containsAll(b.territories))
+                            apt += b.value;
+                    }
 
-                String cmd3 = getBonuses(p.id).trim();
+                    StringBuilder sb = new StringBuilder();
+                    for (Territory t : territories)
+                        sb.append(t.toString()).append(" ");
+                    String cmd2 = sb.toString().trim(), cmd3 = getBonuses(p.id).trim(), reply[];
 
-                List<String> reply = null;
-                try {
                     List<String> command = new ArrayList<String>();
-
                     for (String s : p.cmd.split(" "))
                         command.add(s);
                     command.add(String.valueOf(p.id));
                     command.add(String.valueOf(apt));
-
                     command.add(cmd2);
                     command.add(cmd3);
                     if (k == 0)
                         command.add("X");
                     reply = getReply(p.cmd, command);
-                } catch (NullPointerException ex) {
-                    continue;
-                }
-                if (reply == null)
-                    continue;
+                    if (reply == null)
+                        continue;
 
-                int deployed = 0;
-                Map<Territory, Integer> map = new HashMap<Territory, Integer>();
-                for (String s : reply.get(0).split(" ")) {
-                    if (s.isEmpty()) {
-                        System.out.println("Invalid command by " + p.cmd + ": Empty string");
+                    int deployed = 0;
+                    Map<Territory, Integer> map = new HashMap<Territory, Integer>();
+
+                    for (String s : reply[0].split(" ")) {
+                        if (s.isEmpty()) {
+                            System.out.println("Invalid command by " + p.cmd + ": Empty string");
+                            continue;
+                        }
+                        String[] data = s.split(",");
+                        int row = Integer.parseInt(data[0]), col = Integer.parseInt(data[1]), armies = Integer.parseInt(data[2]);
+                        if (field.territories[row][col].player != p.id) {
+                            System.out.println("Invalid command by " + p.cmd + ": Player id and territory owner differ");
+                            continue;
+                        }
+                        deployed += armies;
+                        map.put(field.territories[row][col], armies);
+                    }
+
+                    if (deployed != apt) {
+                        System.out.println("Invalid command by " + p.cmd + ": No. of armies to be deployed: " + apt + "; No. of armies deployed: " + deployed);
                         continue;
                     }
-                    String[] data = s.split(",");
-                    int row = Integer.parseInt(data[0]), col = Integer.parseInt(data[1]), armies = Integer.parseInt(data[2]);
-                    if (field.territories[row][col].player != p.id) {
-                        System.out.println("Invalid command by " + p.cmd + ": Player id and territory owner differ");
-                        continue;
+
+                    for (Territory t : map.keySet())
+                        t.armies += map.get(t);
+
+                    for (String s : reply[1].split(" ")) {
+                        if (!s.isEmpty() && field.territories[Integer.parseInt(s.split(",")[0])][Integer.parseInt(s.split(",")[1])].player != p.id) {
+                            System.out.println("Invalid command by " + p.cmd + ": Player id and territory owner differ");
+                            continue;
+                        }
+                        if (!s.isEmpty())
+                            commands.add(s);
                     }
-                    deployed += armies;
-                    map.put(field.territories[row][col], armies);
-                }
-
-                if (deployed != apt) {
-                    System.out.println("Invalid command by " + p.cmd + ": No. of armies to be deployed: " + apt + "; No. of armies deployed: " + deployed);
-                    continue;
-                }
-
-                for (Territory t : map.keySet())
-                    t.armies += map.get(t);
-
-                for (String s : reply.get(1).split(" ")) {
-                    if (!s.isEmpty() && field.territories[Integer.parseInt(s.split(",")[0])][Integer.parseInt(s.split(",")[1])].player != p.id) {
-                        System.out.println("Invalid command by " + p.cmd + ": Player id and territory owner differ");
-                        continue;
-                    }
-                    if (!s.isEmpty())
-                        commands.add(s);
+                } catch (Exception ex) {
+                    System.out.println("Command from " + p.cmd + " caused exception to be thrown: " + ex);
                 }
             }
 
@@ -242,31 +237,32 @@ public class Risk {
         }
     }
 
-    private List<String> getReply(String player, List<String> command) {
+    private String[] getReply(String player, List<String> command) {
         try {
-            List<String> l = new ArrayList<String>();
             ProcessBuilder pb = new ProcessBuilder(command);
             pb.redirectErrorStream();
+            long start = System.currentTimeMillis();
             Process p = pb.start();
             BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()));
-            long start = System.currentTimeMillis();
             p.waitFor();
             long duration = System.currentTimeMillis() - start;
-            l.add(br.readLine().trim());
-            l.add(br.readLine().trim());
+
+            String[] arr = new String[2];
+            arr[0] = br.readLine().trim();
+            arr[1] = br.readLine().trim();
             p.destroy();
             br.close();
             if (duration > timeout) {
                 System.out.println(player + " timed out");
                 return null;
             }
-            return l;
+            return arr;
         } catch (IOException | InterruptedException ex) {
             ex.printStackTrace();
             return null;
         } catch (NullPointerException ex) {
             System.out.println("Invalid command by " + player + ": no output");
-            throw ex;
+            return null;
         }
     }
 
@@ -479,6 +475,7 @@ public class Risk {
             for (Territory t : this.territories)
                 t.bonusId = id;
             value = (int) (Math.random() * 5) + 5;
+            System.out.println(value);
         }
     }
 
