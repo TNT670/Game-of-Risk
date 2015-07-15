@@ -475,7 +475,6 @@ public class Risk {
             for (Territory t : this.territories)
                 t.bonusId = id;
             value = (int) (Math.random() * 5) + 5;
-            System.out.println(value);
         }
     }
 
