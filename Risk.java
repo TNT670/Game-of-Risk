@@ -67,8 +67,8 @@ public class Risk {
             System.out.println("Round: " + round + ", Turn: " + (k+1));
             List<String> commands = new ArrayList<String>();
             for (java.util.Iterator<RiskPlayer> i = clones.iterator(); i.hasNext();) {
+                RiskPlayer p = i.next();
                 try {
-                    RiskPlayer p = i.next();
                     int apt = 5;
 
                     final Set<Territory> territories = new HashSet<Territory>();
