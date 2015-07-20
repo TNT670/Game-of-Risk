@@ -1,7 +1,12 @@
+package gameofrisk;
+
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-
+import java.io.PrintStream;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -10,16 +15,35 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
+import visualiser.Visualiser;
+
+
 public class Risk {
+	
+	public static final boolean LOGGING = false;
+	
+	public static final boolean GUI = true;
+	public static final boolean GUI_LAST_FRAME_ONLY = false;
+	public static final long GUI_FRAME_DELAY = 50; //ms
+	public static final boolean GUI_GIF_OUTPUT = false; // note I suggest that you use FileOptimizer to compress the resultant GIF: https://sourceforge.net/projects/nikkhokkho/files/FileOptimizer/
+	public static final String GUI_GIF_FILE = "out.gif"; 
+	
+	private static final boolean RUN_IN_SAME_VM=true;
+	
     private List<RiskPlayer> players = new ArrayList<RiskPlayer>();
     private Map<Integer, String> cmdMap = new HashMap<Integer, String>();
-    private String[] clazz = {"java Player"/*,
-                              Add other players here*/};
+    private String[] clazz = {"java Player",
+    						  "java Hermit",
+    						  "java LandGrab",
+                              "java Castler",
+                              };
     private PlayingField field = new PlayingField();
 
     private final int rounds = 20, turns = 1000, timeout = 1000;
+	private visualiser.Visualiser visualiser;
 
     public Risk() {
+    	
         addPlayers();
         for (int k = 0; k < rounds; k++)
             init(k+1);
@@ -31,6 +55,11 @@ public class Risk {
         });
         for (RiskPlayer p : players)
             System.out.println(p);
+        
+        if (GUI)
+        {
+        	visualiser.cleanup();
+        }
     }
 
     private void addPlayers() {
@@ -39,6 +68,7 @@ public class Risk {
             players.add(new RiskPlayer(s, id));
             cmdMap.put(Integer.valueOf(id++), s);
         }
+      	visualiser = new Visualiser(cmdMap, field.territories,field.bonusList);
     }
 
     private void init(int round) {
@@ -220,19 +250,42 @@ public class Risk {
                 }
             }
 
-            for (Territory[] ta : field.territories) {
-                for (Territory t : ta)
-                    System.out.print(t + "\t");
-                System.out.println();
+            if (LOGGING)
+            {
+	            for (Territory[] ta : field.territories) {
+	                for (Territory t : ta)
+	                    System.out.print(t + "\t");
+	                System.out.println();
+	            }
+	            System.out.println();
             }
-            System.out.println();
-
+            
+            if (GUI && !GUI_LAST_FRAME_ONLY)
+            {
+	        	visualiser.update();
+	        	
+	        	if (GUI_FRAME_DELAY>0)
+	        	{
+		            try {
+		                Thread.sleep(GUI_FRAME_DELAY);
+		            } catch (InterruptedException ex) {
+		                ex.printStackTrace();
+		            }
+	        	}
+            }
+        }
+        
+        if (GUI)
+        {
+        	visualiser.update();
             try {
-                Thread.sleep(100);
+                Thread.sleep(1000);
             } catch (InterruptedException ex) {
                 ex.printStackTrace();
             }
+            visualiser.reset();
         }
+        
 
         for (RiskPlayer p : players) {
             for (RiskPlayer c : clones) {
@@ -246,18 +299,53 @@ public class Risk {
 
     private String[] getReply(String player, List<String> command) {
         try {
-            ProcessBuilder pb = new ProcessBuilder(command);
-            pb.redirectErrorStream();
+        	
+        	BufferedReader br;
+        	Process p=null;
             long start = System.currentTimeMillis();
-            Process p = pb.start();
-            BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()));
-            p.waitFor();
+        	if (!(RUN_IN_SAME_VM && command.get(0).equals("java")) )
+        	{
+                ProcessBuilder pb = new ProcessBuilder(command);
+                pb.redirectErrorStream();
+                p = pb.start();
+                br = new BufferedReader(new InputStreamReader(p.getInputStream()));
+                p.waitFor();        		
+        	}
+        	else
+        	{
+        		PrintStream oldStd = System.out;
+        		
+        		try
+        		{
+        			ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        			PrintStream tempStd = new PrintStream(baos);
+        			System.setOut(tempStd);
+        			Class playerClass = getClass().getClassLoader().loadClass(command.get(1));
+        			String[] commands = command.subList(2, command.size()).toArray(new String[0]);
+        			Method method = playerClass.getMethod("main", new String[commands.length].getClass());
+        			Object[] args = new Object[1];
+        			args[0] = commands;
+        			method.invoke(null,args);
+        			tempStd.close();
+        			
+        			br = new BufferedReader(new InputStreamReader( new ByteArrayInputStream(baos.toByteArray())));
+        		} catch (Exception e)
+        		{
+        			e.printStackTrace();
+        			throw new RuntimeException(e);
+        		}
+        		finally
+        		{
+        			System.setOut(oldStd);
+        		}
+        	}
+
             long duration = System.currentTimeMillis() - start;
 
             String[] arr = new String[2];
             arr[0] = br.readLine().trim();
             arr[1] = br.readLine().trim();
-            p.destroy();
+            if (p!=null) p.destroy();
             br.close();
             if (duration > timeout) {
                 System.out.println(player + " timed out");
@@ -342,8 +430,8 @@ public class Risk {
         }
     }
 
-    private class Territory {
-        int player, armies, row, col, bonusId;
+    public class Territory {
+        public int player, armies, row, col, bonusId;
         public Territory(int row, int col) {
             this.row = row;
             this.col = col;
@@ -472,9 +560,9 @@ public class Risk {
         }
     }
 
-    private class Bonus {
-        Set<Territory> territories;
-        int id, value;
+    public class Bonus {
+        public Set<Territory> territories;
+        public int id, value;
 
         public Bonus(Set<Territory> territories, int id) {
             this.territories = territories;
@@ -508,4 +596,6 @@ public class Risk {
             return cmd + "\t" + score;
         }
     }
+    
+    
 }
