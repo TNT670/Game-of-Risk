@@ -112,6 +112,7 @@ public class Risk {
             
             System.out.println("Round: " + round + ", Turn: " + (k+1));
             List<String> commands = new ArrayList<String>();
+            Map<Territory, Integer> map = new HashMap<Territory, Integer>();
             for (java.util.Iterator<RiskPlayer> i = clones.iterator(); i.hasNext();) {
                 RiskPlayer p = i.next();
                 try {
@@ -157,7 +158,6 @@ public class Risk {
                         continue;
 
                     int deployed = 0;
-                    Map<Territory, Integer> map = new HashMap<Territory, Integer>();
 
                     for (String s : reply[0].split(" ")) {
                         if (s.isEmpty()) {
@@ -179,40 +179,45 @@ public class Risk {
                         continue;
                     }
 
-                    for (Territory t : map.keySet())
-                        t.armies += map.get(t);
-
                     for (String s : reply[1].split(" ")) {
                         if (!s.isEmpty() && field.territories[Integer.parseInt(s.split(",")[0])][Integer.parseInt(s.split(",")[1])].player != p.id) {
                             System.out.println("Invalid command by " + p.cmd + ": Player id and territory owner differ");
                             continue;
                         }
                         if (!s.isEmpty())
-                            commands.add(s);
+                            commands.add(p.id + "," + s);
                     }
                 } catch (Exception ex) {
                     System.out.println("Command from " + p.cmd + " caused exception to be thrown: " + ex);
                 }
             }
+            
+            for (Territory t : map.keySet())
+            	t.armies += map.get(t);
 
             java.util.Collections.shuffle(commands);
             for (String s : commands) {
                 try {
                     String[] data = s.split(",");
-                    int srcRow = Integer.parseInt(data[0]), srcCol = Integer.parseInt(data[1]),
-                        dstRow = Integer.parseInt(data[2]), dstCol = Integer.parseInt(data[3]),
-                        armies = Integer.parseInt(data[4]);
+                    int id = Integer.parseInt(data[0]),
+                        srcRow = Integer.parseInt(data[1]), srcCol = Integer.parseInt(data[2]),
+                        dstRow = Integer.parseInt(data[3]), dstCol = Integer.parseInt(data[4]),
+                        armies = Integer.parseInt(data[5]);
                     Territory src = field.territories[srcRow][srcCol], dst = field.territories[dstRow][dstCol];
+                    if (id != src.player) {
+                    	System.out.println("Invalid command by " + cmdMap.get(Integer.valueOf(id)) + ": Player does not own the specified territory");
+                    	continue;
+                    }
                     if (armies <= 0) {
-                        System.out.println("Invalid command by " + cmdMap.get(Integer.valueOf(src.player)) + ": Number of armies sent is not positive");
+                        System.out.println("Invalid command by " + cmdMap.get(Integer.valueOf(id)) + ": Number of armies sent is not positive");
                         continue;
                     }
                     if (!src.getAdjacent().contains(dst)) {
-                        System.out.println("Invalid command by " + cmdMap.get(Integer.valueOf(src.player)) + ": Destination territory is not adjacent to source territory");
+                        System.out.println("Invalid command by " + cmdMap.get(Integer.valueOf(id)) + ": Destination territory is not adjacent to source territory");
                         continue;
                     }
                     if (src.armies - armies <= 0) {
-                        System.out.println("Invalid command by " + cmdMap.get(Integer.valueOf(src.player)) + ": Armies to be sent is >= armies in territory by " +
+                        System.out.println("Invalid command by " + cmdMap.get(Integer.valueOf(id)) + ": Armies to be sent is >= armies in territory by " +
                             (armies - src.armies));
                         continue;
                     }
@@ -442,102 +447,15 @@ public class Risk {
         public Set<Territory> getAdjacent() {
             Set<Territory> set = new HashSet<Territory>();
             Territory[][] t = field.territories;
-            if (row == 0) {
-                if (col == 0) {
-                    set.add(t[9][9]);
-                    set.add(t[0][9]);
-                    set.add(t[1][9]);
-                    set.add(t[9][0]);
-                    set.add(t[1][0]);
-                    set.add(t[9][1]);
-                    set.add(t[0][1]);
-                    set.add(t[1][1]);
-                }
-                else if (col == 9) {
-                    set.add(t[9][8]);
-                    set.add(t[0][8]);
-                    set.add(t[1][8]);
-                    set.add(t[9][9]);
-                    set.add(t[1][9]);
-                    set.add(t[9][0]);
-                    set.add(t[0][0]);
-                    set.add(t[1][0]);
-                }
-                else {
-                    set.add(t[9][col-1]);
-                    set.add(t[0][col-1]);
-                    set.add(t[1][col-1]);
-                    set.add(t[9][col]);
-                    set.add(t[1][col]);
-                    set.add(t[9][col+1]);
-                    set.add(t[0][col+1]);
-                    set.add(t[1][col+1]);
-                }
-            }
-            else if (row == 9) {
-                if (col == 0) {
-                    set.add(t[8][9]);
-                    set.add(t[9][9]);
-                    set.add(t[0][9]);
-                    set.add(t[8][0]);
-                    set.add(t[0][0]);
-                    set.add(t[8][1]);
-                    set.add(t[9][1]);
-                    set.add(t[0][1]);
-                }
-                else if (col == 9) {
-                    set.add(t[8][8]);
-                    set.add(t[9][8]);
-                    set.add(t[0][8]);
-                    set.add(t[8][9]);
-                    set.add(t[0][9]);
-                    set.add(t[8][0]);
-                    set.add(t[9][0]);
-                    set.add(t[0][0]);
-                }
-                else {
-                    set.add(t[8][col-1]);
-                    set.add(t[9][col-1]);
-                    set.add(t[0][col-1]);
-                    set.add(t[8][col]);
-                    set.add(t[0][col]);
-                    set.add(t[8][col+1]);
-                    set.add(t[9][col+1]);
-                    set.add(t[0][col+1]);
-                }
-            }
-            else {
-                if (col == 0) {
-                    set.add(t[row-1][9]);
-                    set.add(t[row][9]);
-                    set.add(t[row+1][9]);
-                    set.add(t[row-1][0]);
-                    set.add(t[row+1][0]);
-                    set.add(t[row-1][1]);
-                    set.add(t[row][1]);
-                    set.add(t[row+1][1]);
-                }
-                else if (col == 9) {
-                    set.add(t[row-1][8]);
-                    set.add(t[row][8]);
-                    set.add(t[row+1][8]);
-                    set.add(t[row-1][9]);
-                    set.add(t[row+1][9]);
-                    set.add(t[row-1][0]);
-                    set.add(t[row][0]);
-                    set.add(t[row+1][0]);
-                }
-                else {
-                    set.add(t[row-1][col-1]);
-                    set.add(t[row][col-1]);
-                    set.add(t[row+1][col-1]);
-                    set.add(t[row-1][col]);
-                    set.add(t[row+1][col]);
-                    set.add(t[row-1][col+1]);
-                    set.add(t[row][col+1]);
-                    set.add(t[row+1][col+1]);
-                }
-            }
+            set.add(t[row == 0 ? 9 : row-1][col == 0 ? 9 : col-1]);
+            set.add(t[row == 0 ? 9 : row-1][col]);
+            set.add(t[row == 0 ? 9 : row-1][col == 9 ? 0 : col+1]);
+            set.add(t[row][col == 0 ? 9 : col-1]);
+            set.add(t[row][col]);
+            set.add(t[row][col == 9 ? 0 : col+1]);
+            set.add(t[row == 9 ? 0 : row+1][col == 0 ? 9 : col-1]);
+            set.add(t[row == 9 ? 0 : row+1][col]);
+            set.add(t[row == 9 ? 0 : row+1][col == 9 ? 0 : col+1]);
             return set;
         }
 
@@ -596,6 +514,4 @@ public class Risk {
             return cmd + "\t" + score;
         }
     }
-    
-    
 }
